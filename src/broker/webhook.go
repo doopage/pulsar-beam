@@ -139,7 +139,7 @@ func toPulsar(r *http.Response) {
 		return
 	}
 
-	err3 := pulsardriver.SendToPulsar(pulsarURL, token, topicFN, b, true, true, 0)
+	err3 := pulsardriver.SendToPulsar(pulsarURL, token, topicFN, b, true, false, 0)
 	if err3 != nil {
 		return
 	}
