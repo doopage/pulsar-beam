@@ -13,6 +13,7 @@ import (
 )
 
 var producerCacheTTL = util.GetEnvInt("ProducerCacheTTL", 900)
+var producerSendRetryLimit = util.GetEnvInt("ProducerSendRetryLimit", 1)
 
 // ProducerCache is the cache for Producer objects
 var ProducerCache = util.NewCache(util.CacheOption{
@@ -28,11 +29,14 @@ var ProducerCache = util.NewCache(util.CacheOption{
 })
 
 // GetPulsarProducer gets a Pulsar producer object
-func GetPulsarProducer(pulsarURL, pulsarToken, topic string) (pulsar.Producer, error) {
+func GetPulsarProducer(pulsarURL, pulsarToken, topic string, reconnect bool) (pulsar.Producer, error) {
 	key := pulsarURL + pulsarToken + topic
 	obj, exists := ProducerCache.Get(key)
 	if exists {
 		if driver, ok := obj.(*PulsarProducer); ok {
+            if reconnect {
+                return driver.Reconnect()
+            }
 			return driver.GetProducer()
 		}
 	}
@@ -68,8 +72,8 @@ type PulsarProducer struct {
 }
 
 // SendToPulsar sends data to a Pulsar producer.
-func SendToPulsar(url, token, topic string, data []byte, async bool) error {
-	p, err := GetPulsarProducer(url, token, topic)
+func SendToPulsar(url, token, topic string, data []byte, async bool, reconnect bool, retried int) error {
+	p, err := GetPulsarProducer(url, token, topic, reconnect)
 	if err != nil {
 		log.Errorf("Failed to create Pulsar produce err: %v", err)
 		return errors.New("Failed to create Pulsar producer")
@@ -96,13 +100,30 @@ func SendToPulsar(url, token, topic string, data []byte, async bool) error {
 		p.SendAsync(ctx, &message, func(messageId pulsar.MessageID, msg *pulsar.ProducerMessage, err error) {
 			if err != nil {
 				log.Warnf("send to Pulsar err %v", err)
+                // Do reconnect and re-send if producer was closed
+                if err.result == pulsar.ProducerClosed {
+                    if retried < producerSendRetryLimit {
+                        log.Warnf("retry sending to Pulsar due to %v", err)
+                        SendToPulsar(url, token, topic, data, async, true, retried + 1)
+                    }
+                }
 				// TODO: push to a queue for retry
 			}
 		})
 		return nil
 	}
 	_, err = p.Send(ctx, &message)
+    // Do reconnect and re-send if producer was closed
+    if err.result == pulsar.ProducerClosed {
+        if retried < producerSendRetryLimit {
+            log.Warnf("retry sending to Pulsar due to %v", err)
+            return SendToPulsar(url, token, topic, data, async, true, retried + 1)
+        }
+    }
 	return err
+}
+func SendToPulsar(url, token, topic string, data []byte, async bool) error {
+    return SendToPulsar(url, token, topic, data, async, false, 0)
 }
 
 // GetProducer acquires a new pulsar producer
