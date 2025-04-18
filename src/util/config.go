@@ -116,8 +116,6 @@ func Init() {
     Config.PulsarTokenHeaderName = "Authorization"
     
 	ReadConfigFile(configFile)
-    
-    fmt.Printf("PulsarTokenHeaderName %s", Config.PulsarTokenHeaderName)
 
 	log.SetLevel(logLevel(Config.LogLevel))
 
@@ -198,8 +196,8 @@ func ReadConfigFile(configFile string) {
 		Config.PORT, Config.PbDbType, Config.PbDbInterval, Config.TrustStore, Config.DbName, Config.DbConnectionStr)
 	fmt.Printf("PublicKey %s, PrivateKey %s\n",
 		Config.PulsarPublicKey, Config.PulsarPrivateKey)
-	fmt.Printf("PulsarBrokerURL %s, AllowedPulsarURLs %v,PulsarTLSAllowInsecureConnection %s,PulsarTLSValidateHostname %s\n",
-		Config.PulsarBrokerURL, AllowedPulsarURLs, Config.PulsarTLSAllowInsecureConnection, Config.PulsarTLSValidateHostname)
+	fmt.Printf("PulsarBrokerURL %s, AllowedPulsarURLs %v,PulsarTLSAllowInsecureConnection %s,PulsarTLSValidateHostname %s,PulsarTokenHeaderName %s\n",
+		Config.PulsarBrokerURL, AllowedPulsarURLs, Config.PulsarTLSAllowInsecureConnection, Config.PulsarTLSValidateHostname, Config.PulsarTokenHeaderName)
 }
 
 //GetConfig returns a reference to the Configuration
