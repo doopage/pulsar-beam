@@ -140,10 +140,6 @@ func SendToPulsar(url, token, topic string, data []byte, async bool, reconnect b
 	return err
 }
 
-//func SendToPulsar(url, token, topic string, data []byte, async bool) error {
-//    return SendToPulsar(url, token, topic, data, async, false, 0)
-//}
-
 // GetProducer acquires a new pulsar producer
 func (c *PulsarProducer) GetProducer() (pulsar.Producer, error) {
 	c.Lock()
