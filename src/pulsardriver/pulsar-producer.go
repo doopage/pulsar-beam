@@ -99,22 +99,16 @@ func SendToPulsar(url, token, topic string, data []byte, async bool, reconnect b
 	if async {
 		p.SendAsync(ctx, &message, func(messageId pulsar.MessageID, msg *pulsar.ProducerMessage, err error) {
 			if err != nil {
+				log.Warnf("send to Pulsar err %v", err)
 				var pulsarErr *pulsar.Error
 				if errors.As(err, &pulsarErr) {
 					// Do reconnect and re-send if producer was closed
 					if pulsarErr.Result() == pulsar.ProducerClosed {
 						if retried < producerSendRetryLimit {
 							log.Warnf("retry sending to Pulsar due to %v", err)
-							var err2 = SendToPulsar(url, token, topic, data, async, true, retried+1)
-							if err2 != nil {
-								log.Warnf("retry sending to pulsar error %v", err)
-							}
+							SendToPulsar(url, token, topic, data, async, true, retried+1)
 						}
-					} else {
-						log.Warnf("send to Pulsar err %v", err)
 					}
-				} else {
-					log.Warnf("send to Pulsar err %v", err)
 				}
 				// TODO: push to a queue for retry
 			}
@@ -122,19 +116,18 @@ func SendToPulsar(url, token, topic string, data []byte, async bool, reconnect b
 		return nil
 	}
 	_, err = p.Send(ctx, &message)
-	var pulsarErr *pulsar.Error
-	if errors.As(err, &pulsarErr) {
-		if pulsarErr.Result() == pulsar.ProducerClosed {
-			// Do reconnect and re-send if producer was closed
-			if retried < producerSendRetryLimit {
-				log.Warnf("retry sending to Pulsar due to %v", err)
-				return SendToPulsar(url, token, topic, data, async, true, retried+1)
-			}
-		} else {
-			log.Warnf("send to Pulsar err %v", err)
-		}
-	} else {
+	if err != nil {
 		log.Warnf("send to Pulsar err %v", err)
+		var pulsarErr *pulsar.Error
+		if errors.As(err, &pulsarErr) {
+			if pulsarErr.Result() == pulsar.ProducerClosed {
+				// Do reconnect and re-send if producer was closed
+				if retried < producerSendRetryLimit {
+					log.Warnf("retry sending to Pulsar due to %v", err)
+					return SendToPulsar(url, token, topic, data, async, true, retried+1)
+				}
+			}
+		}
 	}
 
 	return err
